@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>永久锁定收款地址</title>
+<style>
+  :root { --bg:#f6f5f1; --card:#fff; --fg:#17181b; --dim:#6a6b70; --line:#e2e0da; --acc:#c98a12; --ok:#1f7a45; --bad:#b3261e; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0e1116; --card:#161a21; --fg:#eceae4; --dim:#9a9ca3; --line:#2a2f38; --acc:#e8b04a; --ok:#5cc184; --bad:#ff7a70; } }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.6 -apple-system, "PingFang SC", system-ui, sans-serif; }
+  main { max-width:640px; margin:0 auto; padding:20px 16px 60px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:12px; }
+  h1 { font-size:20px; margin:0 0 6px; } h2 { font-size:16px; margin:0 0 8px; }
+  .dim { color:var(--dim); } .mono { font-family: ui-monospace, Menlo, monospace; font-size:12.5px; word-break:break-all; }
+  .warn { color:var(--bad); font-weight:600; }
+  button { font:inherit; padding:10px 16px; border-radius:8px; border:1px solid var(--acc); background:var(--acc); color:#fff; cursor:pointer; width:100%; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  table { border-collapse:collapse; width:100%; } td { padding:4px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+  #log li.ok { color:var(--ok); } #log li.bad { color:var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <h1>永久锁定收款地址</h1>
+  <p class="dim">把这枚币两份手续费收款的管理员都改成零地址。之后<b>任何人（包括你自己）都再也不能改收款地址</b>，收益永远打到下面的地址。</p>
+  <p class="warn">不可撤销。签完就再也改不回来。</p>
+  <section>
+    <table>
+      <tr><td class="dim">链</td><td>Base（8453）</td></tr>
+      <tr><td class="dim">代币</td><td class="mono" id="tok"></td></tr>
+      <tr><td class="dim">锁仓合约</td><td class="mono">0xffA37784D619F228D8B379d287a4D7282e500762</td></tr>
+      <tr><td class="dim">当前分成</td><td id="now" class="mono dim">连接钱包后读取</td></tr>
+    </table>
+  </section>
+  <section><button id="connect">连接钱包（需用管理员钱包）</button><p id="who" class="mono dim"></p></section>
+  <section><button id="lock" disabled>签名：永久锁定</button></section>
+  <ul id="log" class="mono"></ul>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.2/ethers.umd.min.js"></script>
+<script>
+const Q = new URLSearchParams(location.search);
+const TOKEN = ethers.getAddress(Q.get('token') || '0xab62f377f4fe2eef95d49ebfe5980c5563425567');
+// ?index=0 只锁第 1 份（80%）；不传则锁你管理的全部份额
+const ONLY = Q.has('index') ? Q.get('index').split(',').map(Number) : null;
+const LOCKER = '0xffA37784D619F228D8B379d287a4D7282e500762';
+const ABI = [
+  'function tokenRewards(address token) view returns (tuple(address token, tuple(address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks) poolKey, uint256 positionId, uint256 numPositions, uint16[] rewardBps, address[] rewardAdmins, address[] rewardRecipients))',
+  'function updateRewardAdmin(address token, uint256 rewardIndex, address newAdmin)',
+];
+const $ = (id) => document.getElementById(id);
+$('tok').textContent = TOKEN;
+let signer, locker, info;
+const log = (m, c = '') => { const li = document.createElement('li'); li.textContent = `${new Date().toLocaleTimeString()}  ${m}`; li.className = c; $('log').prepend(li); };
+const guard = (f) => async () => { try { await f(); } catch (e) { log(e.shortMessage || e.message, 'bad'); } };
+
+async function readInfo() {
+  info = await locker.tokenRewards(TOKEN);
+  $('now').innerHTML = info.rewardRecipients.map((r, i) =>
+    `${Number(info.rewardBps[i]) / 100}% → ${r}<br><span class="dim">管理员 ${info.rewardAdmins[i]}</span>`).join('<br>');
+  return info;
+}
+
+$('connect').onclick = guard(async () => {
+  if (!window.ethereum) throw new Error('没有钱包扩展');
+  await window.ethereum.request({ method: 'eth_requestAccounts' });
+  try { await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x2105' }] }); } catch (e) { if (e.code !== 4902) throw e; }
+  const p = new ethers.BrowserProvider(window.ethereum);
+  if ((await p.getNetwork()).chainId !== 8453n) throw new Error('请切到 Base');
+  signer = await p.getSigner();
+  const me = await signer.getAddress();
+  $('who').textContent = me;
+  locker = new ethers.Contract(LOCKER, ABI, signer);
+  await readInfo();
+  const mine = info.rewardAdmins.map((a, i) => [a, i]).filter(([a]) => a.toLowerCase() === me.toLowerCase());
+  if (!mine.length) throw new Error(info.rewardAdmins.every((a) => a === ethers.ZeroAddress) ? '已经全部锁定，无需再签' : '当前钱包不是这枚币的管理员');
+  $('lock').disabled = false;
+  log(`已连接管理员钱包，可锁定 ${mine.length} 份`, 'ok');
+});
+
+$('lock').onclick = guard(async () => {
+  const me = (await signer.getAddress()).toLowerCase();
+  const idx = info.rewardAdmins.map((a, i) => [a, i]).filter(([a, i]) => a.toLowerCase() === me && (!ONLY || ONLY.includes(i))).map(([, i]) => i);
+  if (!idx.length) throw new Error('没有可锁定的份额');
+  for (const i of idx) await locker.updateRewardAdmin.staticCall(TOKEN, i, ethers.ZeroAddress);
+  log(`模拟通过（${idx.length} 笔）`);
+  if (!confirm(`确认永久锁定下面这 ${idx.length} 份？\n\n之后任何人都不能再改它的收款地址：\n${idx.map((i) => `${Number(info.rewardBps[i]) / 100}% → ${info.rewardRecipients[i]}`).join('\n')}\n\n此操作不可撤销。`)) return;
+  $('lock').disabled = true;
+  for (const i of idx) {
+    log(`第 ${i + 1} 份：请在钱包确认…`);
+    const tx = await locker.updateRewardAdmin(TOKEN, i, ethers.ZeroAddress);
+    log(`已发送 ${tx.hash}`);
+    const rc = await tx.wait();
+    if (rc.status !== 1) throw new Error(`第 ${i + 1} 份失败`);
+    log(`第 ${i + 1} 份已锁定（区块 ${rc.blockNumber}）`, 'ok');
+  }
+  await readInfo();
+  const ok = idx.every((i) => info.rewardAdmins[i] === ethers.ZeroAddress);
+  log(ok ? `链上核对：${idx.map((i) => `${Number(info.rewardBps[i]) / 100}%`).join('、')} 的管理员已是零地址，永久锁定` : '链上核对未通过，请检查', ok ? 'ok' : 'bad');
+});
+</script>
+</body>
+</html>

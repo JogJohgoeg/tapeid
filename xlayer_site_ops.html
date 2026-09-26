@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1.2.245 容器建站（X Layer）</title>
+<style>
+  :root { --bg:#f6f5f1; --card:#fff; --fg:#17181b; --dim:#6a6b70; --line:#e2e0da; --acc:#c98a12; --ok:#1f7a45; --bad:#b3261e; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0e1116; --card:#161a21; --fg:#eceae4; --dim:#9a9ca3; --line:#2a2f38; --acc:#e8b04a; --ok:#5cc184; --bad:#ff7a70; } }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.6 -apple-system, "PingFang SC", system-ui, sans-serif; }
+  main { max-width:640px; margin:0 auto; padding:20px 16px 60px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:12px; }
+  h1 { font-size:20px; margin:0 0 6px; } h2 { font-size:16px; margin:0 0 8px; }
+  .dim { color:var(--dim); } .mono { font-family: ui-monospace, Menlo, monospace; font-size:12.5px; word-break:break-all; }
+  button { font:inherit; padding:10px 16px; border-radius:8px; border:1px solid var(--acc); background:var(--acc); color:#fff; cursor:pointer; width:100%; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  #log li.ok { color:var(--ok); } #log li.bad { color:var(--bad); }
+  table { border-collapse:collapse; width:100%; } td { padding:3px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+</style>
+</head>
+<body>
+<main>
+  <h1>1.2.245 容器建站（X Layer）</h1>
+  <p class="dim">把 TapeID X Layer 发币页放进电路 <b>1.2.245（21 NAND Driver）</b>的容器，做成链上网站，经 <b>1-2-245.aihashrate.stream</b> 打开。三笔签名后，上传脚本自动写入约 17 笔并逐字节核对，剩余 OKB 退回你的钱包。</p>
+  <section>
+    <table>
+      <tr><td class="dim">链</td><td>X Layer（196）</td></tr>
+      <tr><td class="dim">电路</td><td>TapeID #245 的电路 #1（持有人 0xC905…f145）</td></tr>
+      <tr><td class="dim">容器</td><td class="mono">0x75c6E2D063963561c08c838476111adda7a1a6CD</td></tr>
+      <tr><td class="dim">站点合约</td><td class="mono">0xd6efb7adcc9c83dc4924ad56f6a8e4e969b9adb6</td></tr>
+      <tr><td class="dim">上传操作员</td><td class="mono">0x3699d58D22e7be67918f56F4cF3FE52639FE963f（授权 1 天后自动失效）</td></tr>
+      <tr><td class="dim">花费</td><td>开通容器 0.08 OKB + 给操作员 0.004 OKB（上传实际约 0.002，剩余退回）+ gas</td></tr>
+    </table>
+  </section>
+  <section><button id="connect">连接钱包（需用持有人 0xC905…f145）</button><p id="who" class="mono dim"></p></section>
+  <section><h2>① 开通容器（0.08 OKB）</h2><button id="open" disabled>签名：open</button></section>
+  <section><h2>② 授权操作员写入站点（1 天）</h2><button id="setop" disabled>签名：setOperator</button></section>
+  <section><h2>③ 给操作员转 0.004 OKB 付上传 gas</h2><button id="fund" disabled>签名：转 0.004 OKB</button></section>
+  <section><h2>④ 激活链上名字 1.2.245.tape（每 30 天 0.026 OKB）</h2>
+    <p class="dim">网关只展示已激活的站点。月数 <input id="months" type="number" min="1" max="120" value="3" style="width:70px"> 个月（默认 3 个月 = 0.078 OKB，覆盖黑客松评审期；到期前可续）。</p>
+    <button id="bind" disabled>签名：bind</button></section>
+  <ul id="log" class="mono"></ul>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.2/ethers.umd.min.js"></script>
+<script>
+const HOLDER = '0xC9059E0F59F40920E5BD24307eaa4DeFd81Df145';
+const CIRCUITS = '0xA93E807fAB41431827EBBa57443Fb687a95E2AA3', TOKEN_ID = 1n;
+const CONTAINER = '0x75c6E2D063963561c08c838476111adda7a1a6CD';
+const OPENER = '0x536add8f30f03b69f6fbf29d425a816a0dc50106', REGISTRY = '0xd6efb7adcc9c83dc4924ad56f6a8e4e969b9adb6';
+const OP = '0x3699d58D22e7be67918f56F4cF3FE52639FE963f', TTL = 86400n, FUND = ethers.parseEther('0.004');
+const $ = (id) => document.getElementById(id);
+let signer, opener, registry;
+const log = (m, c = '') => { const li = document.createElement('li'); li.textContent = `${new Date().toLocaleTimeString()}  ${m}`; li.className = c; $('log').prepend(li); };
+const guard = (f) => async () => { try { await f(); } catch (e) { log(e.shortMessage || e.reason || e.message, 'bad'); } finally { await refresh().catch(() => {}); } };
+async function send(fn, args, value, label) {
+  await fn.staticCall(...args, { value }); log(`${label}：模拟通过，请在钱包确认…`);
+  const tx = await fn(...args, { value }); log(`${label}：已发送 ${tx.hash}`);
+  const rc = await tx.wait(); if (rc.status !== 1) throw new Error(`${label} 失败`); log(`${label}：完成（区块 ${rc.blockNumber}）`, 'ok');
+}
+async function refresh() {
+  if (!signer) return;
+  const opened = await opener.isOpened(CIRCUITS, TOKEN_ID);
+  $('open').disabled = opened; if (opened) $('open').textContent = '✓ 容器已开通';
+  $('setop').disabled = !opened; $('fund').disabled = !opened; $('bind').disabled = !opened;
+}
+$('connect').onclick = guard(async () => {
+  if (!window.ethereum) throw new Error('没有钱包扩展');
+  await window.ethereum.request({ method: 'eth_requestAccounts' });
+  try { await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xc4' }] }); } catch (e) { if (e.code !== 4902) throw e; }
+  const p = new ethers.BrowserProvider(window.ethereum);
+  if ((await p.getNetwork()).chainId !== 196n) throw new Error('请切到 X Layer');
+  signer = await p.getSigner(); const me = await signer.getAddress();
+  $('who').textContent = `${me} · ${ethers.formatEther(await p.getBalance(me))} OKB`;
+  if (me.toLowerCase() !== HOLDER.toLowerCase()) { signer = null; throw new Error('当前钱包不是 1.2.245 的持有人'); }
+  opener = new ethers.Contract(OPENER, ['function open(address circuits,uint256 tokenId) payable returns (address)', 'function FEE() view returns (uint256)', 'function isOpened(address,uint256) view returns (bool)', 'function accountOf(address,uint256) view returns (address)'], signer);
+  registry = new ethers.Contract(REGISTRY, ['function setOperator(address container,address op,uint256 ttl)'], signer);
+  if ((await opener.accountOf(CIRCUITS, TOKEN_ID)).toLowerCase() !== CONTAINER.toLowerCase()) throw new Error('容器地址与预期不符，已停止');
+  log('已连接持有人钱包', 'ok');
+});
+$('open').onclick = guard(async () => { const fee = await opener.FEE(); await send(opener.open, [CIRCUITS, TOKEN_ID], fee, `① 开通容器（${ethers.formatEther(fee)} OKB）`); });
+$('setop').onclick = guard(async () => { await send(registry.setOperator, [CONTAINER, OP, TTL], 0n, '② setOperator'); $('setop').disabled = true; });
+$('fund').onclick = guard(async () => {
+  log('请在钱包确认转账 0.004 OKB…'); const tx = await signer.sendTransaction({ to: OP, value: FUND }); log(`已发送 ${tx.hash}`);
+  const rc = await tx.wait(); log(rc.status === 1 ? '③ 完成' : '③ 失败', rc.status === 1 ? 'ok' : 'bad'); if (rc.status === 1) $('fund').disabled = true;
+});
+const BINDING = '0x68809fd2fb343aa57d0aeb7f33defe477c9666f9';
+$('bind').onclick = guard(async () => {
+  const b = new ethers.Contract(BINDING, ['function monthlyFee() view returns (uint256)', 'function bind(string name,address container,uint256 months) payable'], signer);
+  const m = BigInt(Math.max(1, Math.min(120, Number($('months').value) || 3)));
+  const fee = (await b.monthlyFee()) * m;
+  if (!confirm(`激活 1.2.245.tape ${m} 个月，付 ${ethers.formatEther(fee)} OKB？`)) return;
+  await send(b.bind, ['1.2.245.tape', CONTAINER, m], fee, `④ 激活 ${m} 个月（${ethers.formatEther(fee)} OKB）`);
+  $('bind').disabled = true;
+});
+if (window.ethereum) window.ethereum.on?.('accountsChanged', () => location.reload());
+</script>
+</body>
+</html>

@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TapeID 处理器上线（X Layer）</title>
+<style>
+  :root { --bg:#f6f5f1; --card:#fff; --fg:#17181b; --dim:#6a6b70; --line:#e2e0da; --acc:#c98a12; --ok:#1f7a45; --bad:#b3261e; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0e1116; --card:#161a21; --fg:#eceae4; --dim:#9a9ca3; --line:#2a2f38; --acc:#e8b04a; --ok:#5cc184; --bad:#ff7a70; } }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.6 -apple-system, "PingFang SC", system-ui, sans-serif; }
+  main { max-width:680px; margin:0 auto; padding:20px 16px 60px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:12px; }
+  h1 { font-size:20px; margin:0 0 6px; } h2 { font-size:16px; margin:0 0 8px; }
+  .dim { color:var(--dim); } .mono { font-family: ui-monospace, Menlo, monospace; font-size:12.5px; word-break:break-all; }
+  button, .btn { font:inherit; padding:10px 16px; border-radius:8px; border:1px solid var(--acc); background:var(--acc); color:#fff; cursor:pointer; width:100%; text-decoration:none; display:block; text-align:center; box-sizing:border-box; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  table { border-collapse:collapse; width:100%; } td { padding:4px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .st { font-weight:600; } .st.ok { color:var(--ok); } .st.bad { color:var(--bad); }
+  #log li.ok { color:var(--ok); } #log li.bad { color:var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <h1>TapeID 处理器上线（X Layer 主网）</h1>
+  <p class="dim">三笔签名：建处理器 → 铸 21 个 NAND → 流片 21 NAND Driver。每笔先在链上模拟通过才让你签。做完后去发币页用这个电路在 IGNIX 发币。</p>
+  <section>
+    <table>
+      <tr><td class="dim">处理器</td><td><b>TapeID</b>（代码 TAPEID）</td></tr>
+      <tr><td class="dim">晶体管总数（上限）</td><td>1,000,000（部署后永久不可改）</td></tr>
+      <tr><td class="dim">单价</td><td>0.0001 OKB / 个（部署后永久不可改）</td></tr>
+      <tr><td class="dim">第一个电路</td><td>21 NAND Driver：15 入 / 2 出 / 21 个 NAND（BSC #279 同一网表）</td></tr>
+      <tr><td class="dim">预计总花费</td><td>约 0.011 OKB（部署费 0.0066 + 晶体管 0.00276 + 流片费 0.0013 + gas）</td></tr>
+    </table>
+  </section>
+  <section><button id="connect">连接钱包（X Layer）</button><p id="who" class="mono dim"></p></section>
+  <section><h2>① 建处理器 <span id="s1" class="st"></span></h2><button id="b1" disabled>签名：createCPU</button><p id="r1" class="mono dim"></p></section>
+  <section><h2>② 铸 21 个 NAND <span id="s2" class="st"></span></h2><button id="b2" disabled>签名：mint 21</button><p id="r2" class="mono dim"></p></section>
+  <section><h2>③ 流片 21 NAND Driver <span id="s3" class="st"></span></h2><button id="b3" disabled>签名：tapeout</button><p id="r3" class="mono dim"></p></section>
+  <section id="next" hidden><h2>完成</h2><p id="tid"></p><a id="go" class="btn">去发币（IGNIX）</a></section>
+  <ul id="log" class="mono"></ul>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.2/ethers.umd.min.js"></script>
+<script>
+const P = {"name": "TapeID", "symbol": "TAPEID", "story": "TapeID: every circuit taped out on this processor can be launched as a coin on IGNIX in one click. 80% of the trading tax goes to the circuit container (whoever holds the circuit), 20% to the author's buyback Safe, locked at launch. First circuit: 21 NAND Driver, a car controller that drives with just 21 NAND gates. 每个在这台处理器上流片的电路，都能一键在 IGNIX 发成币；交易税 80% 进电路容器、20% 进作者回购 Safe，发币时锁死。", "supply": "1000000", "price": "100000000000000", "nl_hex": "0x000000030000030000000f00001100000012000012000000110000110000000f00000f000000140000150000000a0000130000000d000016000000070000070000000c000019000000170000180000001b00001b0000000500001c000000060000060000000b00001e0000001f00001f0000001d00001d0000001a000021000000200000200000002200002200000018000023", "nIn": 15, "nOut": 2};
+const FACTORY = '0x1f09daefa827f02cbb40967cc91b259763760761';
+const FA = ['function createCPU(string name, string symbol, string story, uint256 transistorSupply, uint256 mintPrice) payable returns (address transistors, address circuits)', 'function deployFee() view returns (uint256)', 'function cpuCount() view returns (uint256)', 'function cpuAt(uint256) view returns (address)',
+  'event CPUCreated(address indexed circuits, address indexed transistors, address indexed creator, string name, uint256 supply, uint256 mintPrice)'];
+const TA = ['function mint(uint256 id, uint256 amount) payable', 'function protocolFee() view returns (uint256)', 'function balanceOf(address,uint256) view returns (uint256)', 'function mintPrice() view returns (uint256)', 'function supplyCap() view returns (uint256)', 'function creator() view returns (address)'];
+const CA = ['function tapeout(bytes nl, uint32 nIn, uint32 nOut) payable returns (uint256)', 'function TAPEOUT_FEE() view returns (uint256)', 'function nextId() view returns (uint256)',
+  'event TapedOut(uint256 indexed circuitId, address indexed author, uint32 gateCount, uint32 nState)'];
+const KEY = 'tapeid-xlayer-setup';
+const $ = (id) => document.getElementById(id);
+let signer, me, factory, S = {};
+try { S = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
+const log = (m, c = '') => { const li = document.createElement('li'); li.textContent = `${new Date().toLocaleTimeString()}  ${m}`; li.className = c; $('log').prepend(li); };
+const guard = (f) => async () => { try { await f(); } catch (e) { log(e.shortMessage || e.reason || e.message, 'bad'); } finally { await refresh().catch(() => {}); } };
+const okl = (h) => `<a href="https://www.oklink.com/xlayer/tx/${h}" target="_blank" rel="noopener">${h.slice(0, 14)}…</a>`;
+
+async function send(fn, args, value, label) {
+  await fn.staticCall(...args, { value });
+  log(`${label}：模拟通过，请在钱包确认…`);
+  const tx = await fn(...args, { value });
+  log(`${label}：已发送 ${tx.hash}`);
+  const rc = await tx.wait();
+  if (rc.status !== 1) throw new Error(`${label} 失败`);
+  log(`${label}：完成（区块 ${rc.blockNumber}）`, 'ok');
+  return rc;
+}
+
+async function refresh() {
+  if (!me) return;
+  $('b1').disabled = !!S.circuits;
+  $('s1').textContent = S.circuits ? '✓' : ''; $('s1').className = 'st ok';
+  if (S.circuits) $('r1').innerHTML = `处理器 #${S.cpuIndex ?? '?'} · 电路合约 ${S.circuits} · 晶体管合约 ${S.transistors}` + (S.tx1 ? ` · ${okl(S.tx1)}` : '');
+  if (!S.circuits) return;
+  const t = new ethers.Contract(S.transistors, TA, signer);
+  const nand = await t.balanceOf(me, 0);
+  const done3 = S.cid != null;
+  $('b2').disabled = done3 || nand >= 21n;
+  $('s2').textContent = done3 || nand >= 21n ? '✓' : ''; $('s2').className = 'st ok';
+  if (nand >= 21n || done3) $('r2').innerHTML = `NAND 余额 ${nand}` + (S.tx2 ? ` · ${okl(S.tx2)}` : '');
+  $('b3').disabled = done3 || nand < 21n;
+  $('s3').textContent = done3 ? '✓' : ''; $('s3').className = 'st ok';
+  if (done3) {
+    $('r3').innerHTML = `电路 #${S.cid} · 21 门` + (S.tx3 ? ` · ${okl(S.tx3)}` : '');
+    const tid = `${S.cid}.2.${S.cpuIndex}`;
+    $('tid').innerHTML = `TapeID <b>${tid}</b>：处理器 <a href="https://tapeout.net/#l2/xlayer/${S.circuits}" target="_blank" rel="noopener">tapeout.net</a>`;
+    $('go').href = `./xlayer.html?tid=${tid}&name=${encodeURIComponent('21 NAND Driver')}&symbol=NAND21&logo=${encodeURIComponent('./21-nand-driver.png')}`;
+    $('next').hidden = false;
+  }
+}
+
+$('connect').onclick = guard(async () => {
+  if (!window.ethereum) throw new Error('没有钱包扩展');
+  await window.ethereum.request({ method: 'eth_requestAccounts' });
+  try { await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xc4' }] }); } catch (e) { if (e.code !== 4902) throw e; }
+  const p = new ethers.BrowserProvider(window.ethereum);
+  if ((await p.getNetwork()).chainId !== 196n) throw new Error('请切到 X Layer');
+  signer = await p.getSigner(); me = await signer.getAddress();
+  factory = new ethers.Contract(FACTORY, FA, signer);
+  $('who').textContent = `${me} · ${ethers.formatEther(await p.getBalance(me))} OKB`;
+  if (S.owner && S.owner.toLowerCase() !== me.toLowerCase()) S = {};
+  S.owner = me; save();
+});
+
+$('b1').onclick = guard(async () => {
+  const fee = await factory.deployFee();
+  if (!confirm(`建处理器 TapeID？\n晶体管总数 1,000,000、单价 0.0001 OKB（永久不可改）\n部署费 ${ethers.formatEther(fee)} OKB`)) return;
+  const rc = await send(factory.createCPU, [P.name, P.symbol, P.story, BigInt(P.supply), BigInt(P.price)], fee, '① createCPU');
+  const ev = rc.logs.map((l) => { try { return factory.interface.parseLog(l); } catch { return null; } }).find((e) => e && e.name === 'CPUCreated');
+  S.circuits = ev.args.circuits; S.transistors = ev.args.transistors; S.tx1 = rc.hash;
+  const n = Number(await factory.cpuCount());
+  for (let i = n - 1; i >= Math.max(0, n - 20); i--) if ((await factory.cpuAt(i)).toLowerCase() === S.circuits.toLowerCase()) { S.cpuIndex = i; break; }
+  const t = new ethers.Contract(S.transistors, TA, signer);
+  const [cap, price, creator] = await Promise.all([t.supplyCap(), t.mintPrice(), t.creator()]);
+  log(`链上核对：上限 ${cap}、单价 ${ethers.formatEther(price)} OKB、创建者 ${creator}`, cap === BigInt(P.supply) && price === BigInt(P.price) && creator.toLowerCase() === me.toLowerCase() ? 'ok' : 'bad');
+  save();
+});
+
+$('b2').onclick = guard(async () => {
+  const t = new ethers.Contract(S.transistors, TA, signer);
+  const value = 21n * (await t.mintPrice()) + (await t.protocolFee());
+  const rc = await send(t.mint, [0, 21], value, `② mint 21 NAND（${ethers.formatEther(value)} OKB）`);
+  S.tx2 = rc.hash; save();
+});
+
+$('b3').onclick = guard(async () => {
+  const c = new ethers.Contract(S.circuits, CA, signer);
+  const fee = await c.TAPEOUT_FEE();
+  const rc = await send(c.tapeout, ['0x' + P.nl_hex.replace(/^0x/, ''), P.nIn, P.nOut], fee, `③ tapeout（流片费 ${ethers.formatEther(fee)} OKB）`);
+  const ev = rc.logs.map((l) => { try { return c.interface.parseLog(l); } catch { return null; } }).find((e) => e && e.name === 'TapedOut');
+  S.cid = Number(ev.args.circuitId); S.tx3 = rc.hash; save();
+  log(`电路 #${S.cid}，门数 ${ev.args.gateCount}`, 'ok');
+});
+if (window.ethereum) window.ethereum.on?.('accountsChanged', () => location.reload());
+</script>
+</body>
+</html>

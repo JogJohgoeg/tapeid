@@ -1,0 +1,217 @@
+[
+ {
+  "type": "function",
+  "name": "createToken",
+  "inputs": [
+   {
+    "name": "p",
+    "type": "tuple",
+    "internalType": "struct IgnixManager.CreateParams",
+    "components": [
+     {
+      "name": "name",
+      "type": "string",
+      "internalType": "string"
+     },
+     {
+      "name": "symbol",
+      "type": "string",
+      "internalType": "string"
+     },
+     {
+      "name": "metadataURI",
+      "type": "string",
+      "internalType": "string"
+     },
+     {
+      "name": "salt",
+      "type": "bytes32",
+      "internalType": "bytes32"
+     },
+     {
+      "name": "quote",
+      "type": "address",
+      "internalType": "address"
+     },
+     {
+      "name": "graduation",
+      "type": "uint256",
+      "internalType": "uint256"
+     },
+     {
+      "name": "buyFeeBps",
+      "type": "uint16",
+      "internalType": "uint16"
+     },
+     {
+      "name": "sellFeeBps",
+      "type": "uint16",
+      "internalType": "uint16"
+     },
+     {
+      "name": "taxBuyBps",
+      "type": "uint16",
+      "internalType": "uint16"
+     },
+     {
+      "name": "taxSellBps",
+      "type": "uint16",
+      "internalType": "uint16"
+     },
+     {
+      "name": "snipeStartBps",
+      "type": "uint16",
+      "internalType": "uint16"
+     },
+     {
+      "name": "snipeMins",
+      "type": "uint16",
+      "internalType": "uint16"
+     },
+     {
+      "name": "listingFee",
+      "type": "uint256",
+      "internalType": "uint256"
+     },
+     {
+      "name": "firstBuy",
+      "type": "uint256",
+      "internalType": "uint256"
+     },
+     {
+      "name": "founderBps",
+      "type": "uint16",
+      "internalType": "uint16"
+     },
+     {
+      "name": "founderSecs",
+      "type": "uint32",
+      "internalType": "uint32"
+     },
+     {
+      "name": "founderRoot",
+      "type": "bytes32",
+      "internalType": "bytes32"
+     }
+    ]
+   },
+   {
+    "name": "templateId",
+    "type": "uint16",
+    "internalType": "uint16"
+   },
+   {
+    "name": "vaultData",
+    "type": "bytes",
+    "internalType": "bytes"
+   },
+   {
+    "name": "deadline",
+    "type": "uint64",
+    "internalType": "uint64"
+   },
+   {
+    "name": "factory",
+    "type": "address",
+    "internalType": "address"
+   },
+   {
+    "name": "venue",
+    "type": "uint8",
+    "internalType": "uint8"
+   },
+   {
+    "name": "graduationProtectionSecs",
+    "type": "uint64",
+    "internalType": "uint64"
+   },
+   {
+    "name": "sig",
+    "type": "bytes",
+    "internalType": "bytes"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "token",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "stateMutability": "payable"
+ },
+ {
+  "type": "function",
+  "name": "vaultOf",
+  "inputs": [
+   {
+    "name": "token",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "event",
+  "name": "TokenCreated",
+  "inputs": [
+   {
+    "name": "token",
+    "type": "address",
+    "indexed": true,
+    "internalType": "address"
+   },
+   {
+    "name": "creator",
+    "type": "address",
+    "indexed": true,
+    "internalType": "address"
+   },
+   {
+    "name": "quote",
+    "type": "address",
+    "indexed": true,
+    "internalType": "address"
+   },
+   {
+    "name": "graduation",
+    "type": "uint256",
+    "indexed": false,
+    "internalType": "uint256"
+   },
+   {
+    "name": "metadataURI",
+    "type": "string",
+    "indexed": false,
+    "internalType": "string"
+   },
+   {
+    "name": "vault",
+    "type": "address",
+    "indexed": false,
+    "internalType": "address"
+   },
+   {
+    "name": "tracker",
+    "type": "address",
+    "indexed": false,
+    "internalType": "address"
+   },
+   {
+    "name": "templateId",
+    "type": "uint16",
+    "indexed": false,
+    "internalType": "uint16"
+   }
+  ],
+  "anonymous": false
+ }
+]

@@ -1,0 +1,16 @@
+{
+  "name": "tapeid-coin",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/app.js --bundle --format=esm --platform=browser --target=es2022 --minify --outfile=tapeid_coin.bundle.js && esbuild src/xlayer.js --bundle --format=esm --platform=browser --target=es2022 --minify --loader:.json=json --outfile=xlayer.bundle.js"
+  },
+  "dependencies": {
+    "clanker-sdk": "4.2.19",
+    "viem": "^2.38.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "puppeteer-core": "^23.11.1"
+  }
+}

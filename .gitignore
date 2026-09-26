@@ -1,0 +1,9 @@
+node_modules/
+dist_tape/
+dist_xl/
+demo/frames/
+demo/frames_xl/
+*.gif
+*.mp4
+/tapeid-default.png
+/21-nand-driver.png
