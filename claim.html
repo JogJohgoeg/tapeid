@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TapeID · X Layer</title>
-<meta name="description" content="把你在 X Layer 上流片的 TapeOut 电路，一键在 IGNIX 发成币；交易税 80% 进电路容器、20% 进回购 Safe，发币时锁死。">
+<title>TapeID · 一键领取</title>
+<meta name="description" content="把 IGNIX 金库分给你电路容器的交易税，一键结算、领取、转进钱包。">
 <link rel="icon" href="./tapeid-default.png">
 <style>
   :root {
@@ -70,70 +70,32 @@
   .toast.show { transform:translate(-50%, 0); opacity:1; } .toast.bad { background:var(--bad); color:#fff; } .toast.ok { background:var(--ok); color:#fff; }
   footer { color:var(--dim); font-size:12.5px; text-align:center; margin-top:24px; }
   [hidden] { display:none !important; }
+  .row .head { font-size:17px; margin-bottom:6px; }
+  .row table { width:100%; border-collapse:collapse; margin:4px 0 10px; } .row td { padding:3px 4px; border-bottom:1px solid var(--line); }
+  ol.steps { margin:8px 0 10px; padding-left:20px; color:var(--dim); } ol.steps li.ok { color:var(--ok); }
 </style>
 </head>
 <body>
 <main>
   <header>
-    <img src="./tapeid-default.png" alt="">
+    <img src="./21-nand-driver.png" alt="">
     <div><h1 data-i="title"></h1><p class="lead" data-i="lead"></p></div>
     <button id="lang" class="ghost" type="button" data-i="lang"></button>
   </header>
-  <ol class="dots" aria-hidden="true"><li id="dot1"></li><li id="dot2"></li><li id="dot3"></li><li id="dot4"></li><li id="dot5"></li></ol>
-
-  <section id="st1">
-    <h2><span class="n">1</span><span data-i="s1"></span></h2>
+  <section>
     <button id="connect" class="big" type="button" data-i="connect"></button>
     <p id="connected" class="mono" hidden></p>
     <div id="noWallet" class="note" hidden><p data-i="noWallet" style="margin:0"></p></div>
   </section>
-
-  <section id="st2" hidden>
-    <h2><span class="n">2</span><span data-i="s2"></span></h2>
-    <p id="scanState" class="dim"></p>
-    <div id="none" class="note" hidden><p data-i="none" style="margin:0 0 8px"></p>
-      <a class="btn" href="https://www.tapeout.net/" target="_blank" rel="noopener" data-i="makeOne"></a></div>
-    <div id="pickerWrap" hidden>
-      <div class="row" id="searchRow"><input id="search" data-ph="search" style="flex:1"><span id="found" class="dim"></span></div>
-      <div id="circuits"></div>
-      <p><button id="more" class="ghost" type="button" hidden></button> <button id="change" class="ghost" type="button">↺</button></p>
-    </div>
-  </section>
-
-  <section id="st3" hidden>
-    <h2><span class="n">3</span><span data-i="s3"></span></h2>
-    <div class="preview"><img id="pvLogo" alt="">
-      <div><div class="pn" id="pvName"></div><div class="ps" id="pvSymbol"></div><div class="dim" id="pvTid"></div></div></div>
-    <p data-i="split" style="margin:12px 0 4px"></p>
-    <ul class="earn-list" style="margin-top:4px"><li id="toAuthor"></li><li id="toBuyback"></li></ul>
-    <p class="note" data-i="locked"></p>
-    <p class="hint" data-i="platform"></p>
-    <label for="name" data-i="nameL"></label><input id="name" maxlength="40">
-    <label for="symbol" data-i="symbolL"></label><input id="symbol" maxlength="10" style="text-transform:uppercase">
-    <p class="hint" data-i="symbolH"></p>
-  </section>
-
-  <section id="st4" hidden>
-    <h2><span class="n">4</span><span data-i="s4"></span></h2>
-    <div id="cNet" class="chk"><span data-i="cNet"></span></div>
-    <div id="cGas" class="chk"><span data-i="cGas"></span></div>
-    <div id="cSign" class="chk"><span data-i="cSign"></span></div>
-    <div id="cSim" class="chk"><span data-i="cSim"></span></div>
-    <p id="predicted" class="hint" hidden></p>
-    <p><button id="launch" class="big" type="button" disabled></button></p>
-  </section>
-
-  <section id="st5" hidden>
-    <h2><span class="n">5</span><span data-i="s5"></span></h2>
-    <p class="mono" id="doneAddr"></p>
-    <p id="verify"></p>
-    <p><a id="ignixLink" target="_blank" rel="noopener" data-i="links"></a> · <a id="okl" target="_blank" rel="noopener">OKLink</a></p>
-    <a id="shareX" class="btn big" target="_blank" rel="noopener" data-i="share"></a>
-  </section>
-
-  <footer>TapeID · X Layer · IGNIX 税收分配金库 · 本页不含自有合约，每笔交易都由你的钱包签名 / no custom contracts, every transaction is signed by your wallet · <a href="./">Base 版</a> · <a href="./claim.html">一键领取 / Claim</a></footer>
+  <p id="state" class="dim" hidden></p>
+  <div id="none" class="note" hidden><p data-i="none" style="margin:0 0 8px"></p><a class="btn" href="./xlayer.html">TapeID · X Layer</a></div>
+  <div id="rows"></div>
+  <p class="hint" id="feeNote"></p>
+  <p class="hint" id="safeNote"></p>
+  <p><button id="refresh" class="ghost" type="button" data-i="refresh"></button></p>
+  <footer>TapeID · X Layer · <a href="./xlayer.html">发币 / Launch</a> · 本页不含自有合约，每笔交易都由你的钱包签名 / no custom contracts, every transaction is signed by your wallet</footer>
 </main>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
-<script type="module" src="./xlayer.bundle.js"></script>
+<script type="module" src="./claim.bundle.js"></script>
 </body>
 </html>

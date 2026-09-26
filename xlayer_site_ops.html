@@ -47,7 +47,10 @@ const HOLDER = '0xC9059E0F59F40920E5BD24307eaa4DeFd81Df145';
 const CIRCUITS = '0xA93E807fAB41431827EBBa57443Fb687a95E2AA3', TOKEN_ID = 1n;
 const CONTAINER = '0x75c6E2D063963561c08c838476111adda7a1a6CD';
 const OPENER = '0x536add8f30f03b69f6fbf29d425a816a0dc50106', REGISTRY = '0xd6efb7adcc9c83dc4924ad56f6a8e4e969b9adb6';
-const OP = '0x3699d58D22e7be67918f56F4cF3FE52639FE963f', TTL = 86400n, FUND = ethers.parseEther('0.004');
+const Q = new URLSearchParams(location.search);
+const OP = '0x3699d58D22e7be67918f56F4cF3FE52639FE963f', TTL = 86400n, FUND = ethers.parseEther(Q.get('fund') || '0.004');
+// ?fund=0.0015&only=fund：授权仍有效时只补 gas
+if (Q.get('only') === 'fund') document.addEventListener('DOMContentLoaded', () => {});
 const $ = (id) => document.getElementById(id);
 let signer, opener, registry;
 const log = (m, c = '') => { const li = document.createElement('li'); li.textContent = `${new Date().toLocaleTimeString()}  ${m}`; li.className = c; $('log').prepend(li); };
@@ -80,7 +83,7 @@ $('connect').onclick = guard(async () => {
 $('open').onclick = guard(async () => { const fee = await opener.FEE(); await send(opener.open, [CIRCUITS, TOKEN_ID], fee, `① 开通容器（${ethers.formatEther(fee)} OKB）`); });
 $('setop').onclick = guard(async () => { await send(registry.setOperator, [CONTAINER, OP, TTL], 0n, '② setOperator'); $('setop').disabled = true; });
 $('fund').onclick = guard(async () => {
-  log('请在钱包确认转账 0.004 OKB…'); const tx = await signer.sendTransaction({ to: OP, value: FUND }); log(`已发送 ${tx.hash}`);
+  log(`请在钱包确认转账 ${ethers.formatEther(FUND)} OKB…`); const tx = await signer.sendTransaction({ to: OP, value: FUND }); log(`已发送 ${tx.hash}`);
   const rc = await tx.wait(); log(rc.status === 1 ? '③ 完成' : '③ 失败', rc.status === 1 ? 'ok' : 'bad'); if (rc.status === 1) $('fund').disabled = true;
 });
 const BINDING = '0x68809fd2fb343aa57d0aeb7f33defe477c9666f9';
@@ -92,6 +95,11 @@ $('bind').onclick = guard(async () => {
   await send(b.bind, ['1.2.245.tape', CONTAINER, m], fee, `④ 激活 ${m} 个月（${ethers.formatEther(fee)} OKB）`);
   $('bind').disabled = true;
 });
+if (Q.get('only') === 'fund') {
+  for (const id of ['open', 'setop', 'bind']) $(id).closest('section').hidden = true;
+  $('fund').textContent = `签名：转 ${ethers.formatEther(FUND)} OKB`;
+  $('fund').closest('section').querySelector('h2').textContent = `给操作员转 ${ethers.formatEther(FUND)} OKB 付上传 gas（用剩退回）`;
+}
 if (window.ethereum) window.ethereum.on?.('accountsChanged', () => location.reload());
 </script>
 </body>

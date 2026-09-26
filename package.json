@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild src/app.js --bundle --format=esm --platform=browser --target=es2022 --minify --outfile=tapeid_coin.bundle.js && esbuild src/xlayer.js --bundle --format=esm --platform=browser --target=es2022 --minify --loader:.json=json --outfile=xlayer.bundle.js"
+    "build": "esbuild src/app.js --bundle --format=esm --platform=browser --target=es2022 --minify --outfile=tapeid_coin.bundle.js && esbuild src/xlayer.js --bundle --format=esm --platform=browser --target=es2022 --minify --loader:.json=json --outfile=xlayer.bundle.js && esbuild src/claim.js --bundle --format=esm --platform=browser --target=es2022 --minify --outfile=claim.bundle.js"
   },
   "dependencies": {
     "clanker-sdk": "4.2.19",

@@ -10,7 +10,7 @@ TapeID turns any [TapeOut](https://www.tapeout.net/) circuit into a tradable ass
 | Deployer | `0xC9059E0F59F40920E5BD24307eaa4DeFd81Df145` |
 | First circuit | **21 NAND Driver** (TapeID `1.2.245`) — a car controller built from just 21 NAND gates; on‑chain `eval` matches the reference netlist 64/64 |
 | First coin | **$NAND21** `0x2831E70D96DD8fb1A0EbE2aE17104147F29CEEEe` — [IGNIX](https://ignix.bot/launch?token=0x2831E70D96DD8fb1A0EbE2aE17104147F29CEEEe) · vault `0xD47188959453617271Fe87c2055981878f5DFA8F`: 80 % container `0x75c6E2D063963561c08c838476111adda7a1a6CD` / 20 % buyback Safe `0x647B12A8E79fb9CF72768125323c832dB960CD7e` |
-| On‑chain site | https://1-2-245.aihashrate.stream/ (also https://1-2-245.tapekit.org/) |
+| On‑chain site | https://1-2-245.aihashrate.stream/ (also https://1-2-245.tapekit.org/) · one‑click claim: https://1-2-245.aihashrate.stream/claim.html |
 | Demo video | https://nand.aihashrate.stream/tapeid/tapeid-demo-xl.mp4 |
 | Base edition | https://nand.aihashrate.stream/tapeid/ — Clanker v4 on Base, shows up as an X smart cashtag |
 
@@ -21,6 +21,7 @@ TapeID turns any [TapeOut](https://www.tapeout.net/) circuit into a tradable ass
 - `src/buyback_safe.js` — the 20 % recipient is a counterfactual Safe v1.4.1 owned only by the author's wallet (address must match the factory's simulated deployment).
 - `src/xlayer.js` / `xlayer.html` — X Layer wizard; `src/app.js` / `index.html` — Base wizard (Clanker v4).
 - `xlayer_setup.html` — createCPU → mint 21 NAND → tapeout; `xlayer_site_ops.html` — open container, authorize uploader, activate `1.2.245.tape`; `tape_dist_xl.py` + `tools/site_upload.py` — on‑chain site packaging and upload.
+- `src/claim.js` / `claim.html` — one‑click claim: finds the IGNIX vaults paying your circuit containers, previews the claimable amount, then `sync` → `claimFor(container)` → container `execute` (with the TapeOut exec fee) to your wallet.
 - No custom contracts. Every transaction is signed by the user's wallet.
 
 ## Build & test
